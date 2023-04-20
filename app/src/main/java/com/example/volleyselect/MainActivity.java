@@ -6,8 +6,10 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -28,11 +30,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.Inflater;
 
 public class MainActivity extends AppCompatActivity implements SwipeRefreshLayout.OnRefreshListener {
 
     public static final String URLSelect = "https://websensordata.000webhostapp.com/android/select.php";
     public static final String URLDelete = "https://websensordata.000webhostapp.com/android/delete.php";
+    public static final String URLEdit = "https://websensordata.000webhostapp.com/android/edit.php";
+    public static final String URLInsert = "https://websensordata.000webhostapp.com/android/insert.php";
     //public static final String URLSelect = "http://192.168.1.5:8080/kampus/android/select.php";
     //public static final String URLDelete = "http://192.168.1.5:8080/kampus/android/delete.php";
 
@@ -40,6 +45,9 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
     SwipeRefreshLayout swipe;
     List<Data> itemList = new ArrayList<Data>();
     MhsAdapter adapter;
+    LayoutInflater inflater;
+    EditText tid, tnim, tnama, talamat;
+    String vid, vnim, vnama, valamat;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
                                 hapusData(idx);
                                 break;
                             case 1:
+                                ubahData(idx);
                                 break;
                         }
                     }
@@ -85,6 +94,139 @@ public class MainActivity extends AppCompatActivity implements SwipeRefreshLayou
                 return false;
             }
         });
+    }
+
+    public void ubahData(String id){
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URLEdit,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            JSONObject jObj = new JSONObject(response);
+
+                            String idx = jObj.getString("id");
+                            String nimx = jObj.getString("nim");
+                            String namax = jObj.getString("nama");
+                            String alamatx = jObj.getString("alamat");
+
+                            dialogForm(idx, nimx, namax, alamatx, "Update");
+
+                            adapter.notifyDataSetChanged();
+
+                        }catch (JSONException e) {
+                            // JSON error
+                            e.printStackTrace();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(MainActivity.this, "Gagal Koneksi Server", Toast.LENGTH_LONG).show();
+                    }
+                })
+        {
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                Map<String, String> params = new HashMap<>();
+
+                params.put("id", id);
+                return params;
+            }
+        };
+
+        RequestQueue queue = Volley.newRequestQueue(this);
+        queue.add(stringRequest);
+    }
+    public void dialogForm(String id, String nim, String nama, String alamat, String button){
+        AlertDialog.Builder dialogForm = new AlertDialog.Builder( MainActivity.this);
+        inflater = getLayoutInflater();
+        View viewDialog = inflater.inflate(R.layout.form_mahasiswa, null);
+        dialogForm.setView(viewDialog);
+        dialogForm.setCancelable(true);
+        dialogForm.setTitle(" ");
+
+
+        tid = (EditText) viewDialog.findViewById(R.id.inId);
+        tnim = (EditText) viewDialog.findViewById(R.id.inNim);
+        tnama = (EditText) viewDialog.findViewById(R.id.inNama);
+        talamat = (EditText) viewDialog.findViewById(R.id.inAlamat);
+
+        if (id.isEmpty()){
+            tid.setText(null);
+            tnim.setText(null);
+            talamat.setText(null);
+            tnama.setText(null);
+        }else{
+            tid.setText(id);
+            tnim.setText(nim);
+            tnama.setText(nama);
+            talamat.setText(alamat);
+        }
+
+        dialogForm.setPositiveButton(button, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                vid = tid.getText().toString();
+                vnim = tnim.getText().toString();
+                vnama = tnama.getText().toString();
+                valamat = talamat.getText().toString();
+
+                simpan();
+                dialog.dismiss();
+            }
+        });
+        dialogForm.setNegativeButton("Batal", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+                tid.setText(null);
+                tnim.setText(null);
+                talamat.setText(null);
+                tnama.setText(null);
+            }
+        });
+        dialogForm.show();
+    }
+
+    public void simpan (){
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URLInsert,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        callVolley();
+                        Toast.makeText(MainActivity.this, response, Toast.LENGTH_LONG).show();
+                    }
+                }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                Toast.makeText(MainActivity.this, "gagal koneksi ke server, cek setingan koneksi anda", Toast.LENGTH_LONG).show();
+            }
+        })
+        {
+
+            @Override
+            protected Map<String, String> getParams() throws AuthFailureError {
+                // Posting parameters ke post url
+                Map<String, String> params = new HashMap<String, String>();
+
+                if (vid.isEmpty()) {
+                    params.put("nim", vnim);
+                    params.put("nama", vnama);
+                    params.put("alamat", valamat);
+                    return params;
+                }else{
+                    params.put("id", vid);
+                    params.put("nim", vnim);
+                    params.put("nama", vnama);
+                    params.put("alamat", valamat);
+                    return params;
+                }
+            }
+
+        };
+        RequestQueue queue = Volley.newRequestQueue(getApplicationContext());
+        queue.add(stringRequest);
     }
 
     public void hapusData(String id){
